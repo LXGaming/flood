@@ -373,6 +373,9 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
                   .map((tracker) => tracker.url)
                   .filter((url) => getTorrentTrackerTypeFromURL(url) !== TorrentTrackerType.DHT),
               );
+            } else {
+              existingProperties.message = '';
+              existingProperties.status = [];
             }
 
             continue;
@@ -383,10 +386,13 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
             continue;
           }
 
+          let cacheTrackerState;
           let trackers;
           if (info.trackers != null && Array.isArray(info.trackers)) {
+            cacheTrackerState = true;
             trackers = info.trackers;
           } else {
+            cacheTrackerState = false;
             trackers = await this.clientRequestManager.getTorrentTrackers(info.hash).catch(() => undefined);
             if (trackers == null || !Array.isArray(trackers)) {
               continue
@@ -397,8 +403,8 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
             comment: properties?.comment,
             dateCreated: properties?.creation_date,
             isPrivate: info.private ?? trackers.some((tracker) => getTorrentPrivateFromTrackers(tracker) === true),
-            message: getTorrentMessageFromTrackers(trackers),
-            status: getTorrentErrorFromTrackers(trackers) ? ['error'] : [],
+            message: cacheTrackerState ? getTorrentMessageFromTrackers(trackers) : '',
+            status: cacheTrackerState && getTorrentErrorFromTrackers(trackers) ? ['error'] : [],
             trackerURIs: getDomainsFromURLs(
               trackers
                 .map((tracker) => tracker.url)
