@@ -351,30 +351,55 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
 
   async fetchTorrentList(): Promise<TorrentListSummary> {
     return this.clientRequestManager
-      .getTorrentInfos()
+      .getTorrentInfos(true)
       .then(this.processClientRequestSuccess, this.processClientRequestError)
       .then(async (infos) => {
         this.emit('PROCESS_TORRENT_LIST_START');
 
         // qBittorrent can not handle requests in a highly concurrent way.
-        for await (const {hash} of infos) {
-          if (this.cachedProperties[hash] == null) {
-            const properties = await this.clientRequestManager.getTorrentProperties(hash).catch(() => undefined);
-            const trackers = await this.clientRequestManager.getTorrentTrackers(hash).catch(() => undefined);
+        for await (const info of infos) {
+          const existingProperties = this.cachedProperties[info.hash];
+          if (existingProperties != null) {
+            if (info.private != null) {
+              existingProperties.isPrivate = info.private;
+            }
 
-            if (properties != null && trackers != null && Array.isArray(trackers)) {
-              this.cachedProperties[hash] = {
-                comment: properties?.comment,
-                dateCreated: properties?.creation_date,
-                isPrivate: trackers[0]?.msg.includes('is private'),
-                trackerURIs: getDomainsFromURLs(
-                  trackers
-                    .map((tracker) => tracker.url)
-                    .filter((url) => getTorrentTrackerTypeFromURL(url) !== TorrentTrackerType.DHT),
-                ),
-              };
+            if (info.trackers != null && Array.isArray(info.trackers)) {
+              existingProperties.trackerURIs = getDomainsFromURLs(
+                info.trackers
+                  .map((tracker) => tracker.url)
+                  .filter((url) => getTorrentTrackerTypeFromURL(url) !== TorrentTrackerType.DHT),
+              );
+            }
+
+            continue;
+          }
+
+          const properties = await this.clientRequestManager.getTorrentProperties(info.hash).catch(() => undefined);
+          if (properties == null) {
+            continue;
+          }
+
+          let trackers;
+          if (info.trackers != null && Array.isArray(info.trackers)) {
+            trackers = info.trackers;
+          } else {
+            trackers = await this.clientRequestManager.getTorrentTrackers(info.hash).catch(() => undefined);
+            if (trackers == null || !Array.isArray(trackers)) {
+              continue
             }
           }
+
+          this.cachedProperties[info.hash] = {
+            comment: properties?.comment,
+            dateCreated: properties?.creation_date,
+            isPrivate: info.private ?? trackers[0]?.msg.includes('is private'),
+            trackerURIs: getDomainsFromURLs(
+              trackers
+                .map((tracker) => tracker.url)
+                .filter((url) => getTorrentTrackerTypeFromURL(url) !== TorrentTrackerType.DHT),
+            ),
+          };
         }
 
         const torrentList: TorrentList = Object.assign(
