@@ -2,7 +2,7 @@ import type {TorrentProperties} from '../../../../shared/types/Torrent';
 import {TorrentPeer} from '../../../../shared/types/TorrentPeer';
 import type {TorrentTracker} from '../../../../shared/types/TorrentTracker';
 import {TorrentTrackerType} from '../../../../shared/types/TorrentTracker';
-import type {QBittorrentTorrentState} from '../types/QBittorrentTorrentsMethods';
+import type {QBittorrentTorrentState, QBittorrentTorrentTracker} from '../types/QBittorrentTorrentsMethods';
 
 export const getTorrentPeerPropertiesFromFlags = (flags: string): Pick<TorrentPeer, 'isEncrypted' | 'isIncoming'> => {
   const flagsArray = flags.split(' ');
@@ -93,3 +93,10 @@ export const getTorrentStatusFromState = (state: QBittorrentTorrentState): Torre
 
   return statuses;
 };
+
+// https://github.com/qbittorrent/qBittorrent/blob/da87be2b12893dfb769df8124afeb064f099dc71/src/webui/api/torrentscontroller.cpp#L210-L247
+export const getTorrentPrivateFromTrackers = (tracker: QBittorrentTorrentTracker): boolean | undefined => {
+  if (tracker.url === '** [DHT] **' || tracker.url === '** [PeX] **' || tracker.url === '** [LSD] **') {
+    return tracker.msg === 'This torrent is private';
+  }
+}

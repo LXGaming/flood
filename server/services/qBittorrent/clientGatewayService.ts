@@ -40,7 +40,7 @@ import ClientRequestManager from './clientRequestManager';
 import {QBittorrentTorrentContentPriority, QBittorrentTorrentTrackerStatus} from './types/QBittorrentTorrentsMethods';
 import {isApiVersionAtLeast} from './util/apiVersionCheck';
 import {
-  getTorrentPeerPropertiesFromFlags,
+  getTorrentPeerPropertiesFromFlags, getTorrentPrivateFromTrackers,
   getTorrentStatusFromState,
   getTorrentTrackerTypeFromURL,
 } from './util/torrentPropertiesUtil';
@@ -393,7 +393,7 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
           this.cachedProperties[info.hash] = {
             comment: properties?.comment,
             dateCreated: properties?.creation_date,
-            isPrivate: info.private ?? trackers[0]?.msg.includes('is private'),
+            isPrivate: info.private ?? trackers.some((tracker) => getTorrentPrivateFromTrackers(tracker) === true),
             trackerURIs: getDomainsFromURLs(
               trackers
                 .map((tracker) => tracker.url)
