@@ -138,9 +138,13 @@ class ClientRequestManager {
       .then((res) => res.data);
   }
 
-  async getTorrentInfos(): Promise<QBittorrentTorrentInfos> {
+  async getTorrentInfos(includeTrackers = false): Promise<QBittorrentTorrentInfos> {
+    const data = new URLSearchParams();
+    if (isApiVersionAtLeast(await this.apiVersion, '2.11.4')) {
+      data.set("includeTrackers", includeTrackers ? 'true' : 'false');
+    }
     return axios
-      .post<QBittorrentTorrentInfos>(`${this.apiBase}/torrents/info`, null, {
+      .post<QBittorrentTorrentInfos>(`${this.apiBase}/torrents/info`, data, {
         headers: await this.getRequestHeaders(),
       })
       .then((res) => res.data);

@@ -73,6 +73,8 @@ export interface QBittorrentTorrentInfo {
   num_seeds: number;
   // Torrent priority. Returns -1 if queuing is disabled or torrent is in seed mode
   priority: number;
+  // True if the torrent is private. Added in v5.0.0
+  private?: boolean;
   // Torrent progress (percentage/100)
   progress: number;
   // Torrent share ratio. Max ratio value: 9999.
@@ -101,6 +103,8 @@ export interface QBittorrentTorrentInfo {
   total_size: number;
   // The first tracker with working status. Returns empty string if no tracker is working.
   tracker: string;
+  // Torrent trackers. Added in v5.1.0
+  trackers?: Array<QBittorrentTorrentTracker>;
   // Torrent upload speed limit (bytes/s). -1 if unlimited.
   up_limit: number;
   // Amount of data uploaded
