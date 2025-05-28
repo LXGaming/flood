@@ -40,6 +40,7 @@ import ClientRequestManager from './clientRequestManager';
 import {QBittorrentTorrentContentPriority, QBittorrentTorrentTrackerStatus} from './types/QBittorrentTorrentsMethods';
 import {isApiVersionAtLeast} from './util/apiVersionCheck';
 import {
+  getTorrentErrorFromTrackers, getTorrentMessageFromTrackers,
   getTorrentPeerPropertiesFromFlags, getTorrentPrivateFromTrackers,
   getTorrentStatusFromState,
   getTorrentTrackerTypeFromURL,
@@ -49,7 +50,7 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
   private clientRequestManager = new ClientRequestManager(this.user.client as QBittorrentConnectionSettings);
   private cachedProperties: Record<
     string,
-    Pick<TorrentProperties, 'comment' | 'dateCreated' | 'isPrivate' | 'trackerURIs'>
+    Pick<TorrentProperties, 'comment' | 'dateCreated' | 'isPrivate' | 'message' | 'status' | 'trackerURIs'>
   > = {};
 
   async addTorrentsByFile({
@@ -365,6 +366,8 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
             }
 
             if (info.trackers != null && Array.isArray(info.trackers)) {
+              existingProperties.message = getTorrentMessageFromTrackers(info.trackers);
+              existingProperties.status = getTorrentErrorFromTrackers(info.trackers) ? ['error'] : []
               existingProperties.trackerURIs = getDomainsFromURLs(
                 info.trackers
                   .map((tracker) => tracker.url)
@@ -394,6 +397,8 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
             comment: properties?.comment,
             dateCreated: properties?.creation_date,
             isPrivate: info.private ?? trackers.some((tracker) => getTorrentPrivateFromTrackers(tracker) === true),
+            message: getTorrentMessageFromTrackers(trackers),
+            status: getTorrentErrorFromTrackers(trackers) ? ['error'] : [],
             trackerURIs: getDomainsFromURLs(
               trackers
                 .map((tracker) => tracker.url)
@@ -410,6 +415,8 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
                 comment = '',
                 dateCreated = 0,
                 isPrivate = false,
+                message = '',
+                status = [],
                 trackerURIs = [],
               } = this.cachedProperties[info.hash] || {};
 
@@ -428,7 +435,7 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
                 isPrivate,
                 isInitialSeeding: info.super_seeding,
                 isSequential: info.seq_dl,
-                message: '', // in tracker method
+                message,
                 name: info.name,
                 peersConnected: info.num_leechs,
                 peersTotal: info.num_incomplete,
@@ -438,7 +445,7 @@ class QBittorrentClientGatewayService extends ClientGatewayService {
                 seedsConnected: info.num_seeds,
                 seedsTotal: info.num_complete,
                 sizeBytes: info.size,
-                status: getTorrentStatusFromState(info.state),
+                status: [...getTorrentStatusFromState(info.state), ...status],
                 tags: info.tags === '' ? [] : info.tags.split(',').map((tag) => tag.trim()),
                 trackerURIs,
                 upRate: info.upspeed,
